@@ -1,19 +1,14 @@
 {
-  "version": 2,
-  "functions": {
-    "api/*.py": {
-      "maxDuration": 60,
-      "memory": 512
+  "builds": [
+    {
+      "src": "app.py",
+      "use": "@vercel/python"
     }
-  },
+  ],
   "routes": [
     {
-      "src": "/api/scrape",
-      "dest": "/api/scrape.py"
-    },
-    {
       "src": "/(.*)",
-      "dest": "/public/$1"
+      "dest": "app.py"
     }
   ]
 }
