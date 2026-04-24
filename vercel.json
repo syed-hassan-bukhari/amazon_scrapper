@@ -1,7 +1,7 @@
 {
   "version": 2,
   "functions": {
-    "api/scrape.py": {
+    "api/*.py": {
       "maxDuration": 60,
       "memory": 512
     }
