@@ -1,7 +1,6 @@
 import sys
 import os
 
-# Allow importing scraper.py / sheets.py / config.py from project root
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from flask import Flask, request, jsonify
