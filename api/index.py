@@ -3,12 +3,17 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 import requests as http_requests
 from scraper import scrape_by_barcode, set_delivery_location
 from sheets import save_to_sheet
 
 app = Flask(__name__)
+
+@app.route("/")
+def index():
+    root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return send_from_directory(root_dir, "index.html")
 
 @app.route("/api/scrape", methods=["POST"])
 def scrape():
