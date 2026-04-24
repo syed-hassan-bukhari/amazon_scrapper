@@ -1,23 +1,15 @@
-"""
-app.py — Local Flask development server
-Serves the frontend from /public and exposes /api/scrape.
-Run with: python app.py
-"""
-
+import sys
 import os
-from flask import Flask, request, jsonify, send_from_directory
+
+# Allow importing scraper.py / sheets.py / config.py from project root
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from flask import Flask, request, jsonify
 import requests as http_requests
 from scraper import scrape_by_barcode, set_delivery_location
 from sheets import save_to_sheet
 
-# Serve static files from the /public folder
-app = Flask(__name__, static_folder="public", static_url_path="")
-
-
-@app.route("/")
-def index():
-    return send_from_directory("public", "index.html")
-
+app = Flask(__name__)
 
 @app.route("/api/scrape", methods=["POST"])
 def scrape():
@@ -59,9 +51,3 @@ def scrape():
             "postal_code": postal_code,
         },
     })
-
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    print(f"\n  Amazon Price Scanner running at http://localhost:{port}\n")
-    app.run(debug=True, host="0.0.0.0", port=port)
