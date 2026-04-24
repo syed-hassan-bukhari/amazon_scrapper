@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Amazon Price Scanner</title>
+  <meta name="description" content="Scan any product barcode to instantly look up its Amazon price and save it to Google Sheets." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0b0e1a;
+      --surface:   #111827;
+      --surface2:  #1a2236;
+      --border:    #1f2d47;
+      --accent:    #f59e0b;
+      --accent2:   #f97316;
+      --green:     #10b981;
+      --red:       #ef4444;
+      --blue:      #3b82f6;
+      --text:      #f1f5f9;
+      --muted:     #64748b;
+      --radius:    14px;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* ── Header ── */
+    header {
+      width: 100%;
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(17,24,39,0.8);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .logo {
+      width: 40px; height: 40px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+    }
+    header h1 { font-size: 1.2rem; font-weight: 700; }
+    header span { font-size: 0.78rem; color: var(--muted); margin-left: 4px; font-weight: 400; }
+    .badge {
+      margin-left: auto;
+      font-size: 0.72rem;
+      padding: 4px 10px;
+      border-radius: 20px;
+      background: rgba(16,185,129,0.15);
+      color: var(--green);
+      border: 1px solid rgba(16,185,129,0.3);
+      font-weight: 600;
+    }
+
+    /* ── Main ── */
+    main {
+      width: 100%;
+      max-width: 780px;
+      padding: 40px 20px 80px;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+
+    .hero {
+      text-align: center;
+      padding: 10px 0 4px;
+    }
+    .hero h2 {
+      font-size: 2rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #f1f5f9 40%, var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      line-height: 1.2;
+    }
+    .hero p {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    /* ── Card ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+    }
+
+    /* ── Form ── */
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1.8fr;
+      gap: 14px;
+    }
+    @media (max-width: 540px) { .form-row { grid-template-columns: 1fr; } }
+
+    .field { display: flex; flex-direction: column; gap: 7px; }
+    .field label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .field input {
+      background: var(--surface2);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.95rem;
+      padding: 11px 14px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .field input::placeholder { color: #374151; }
+    .field input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(245,158,11,0.12);
+    }
+
+    .btn {
+      width: 100%;
+      margin-top: 18px;
+      padding: 14px;
+      border: none;
+      border-radius: 10px;
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #0b0e1a;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+      position: relative;
+      overflow: hidden;
+    }
+    .btn:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(245,158,11,0.3); }
+    .btn:active { transform: translateY(0); }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+    .btn .spinner {
+      width: 18px; height: 18px;
+      border: 2.5px solid rgba(0,0,0,0.3);
+      border-top-color: #0b0e1a;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Result card ── */
+    #result-card {
+      display: none;
+      animation: fadeUp 0.4s ease both;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .result-header {
+      display: flex; align-items: flex-start; gap: 16px;
+    }
+    .result-icon {
+      width: 52px; height: 52px; min-width: 52px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 26px;
+    }
+    .result-meta { flex: 1; min-width: 0; }
+    .result-name {
+      font-size: 1rem;
+      font-weight: 600;
+      line-height: 1.4;
+      margin-bottom: 6px;
+    }
+    .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+    .tag {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 20px;
+    }
+    .tag-asin  { background: rgba(59,130,246,0.15); color: var(--blue);  border: 1px solid rgba(59,130,246,0.25); }
+    .tag-saved { background: rgba(16,185,129,0.15); color: var(--green); border: 1px solid rgba(16,185,129,0.25); }
+    .tag-zip   { background: rgba(245,158,11,0.12); color: var(--accent); border: 1px solid rgba(245,158,11,0.2); }
+
+    .price-box {
+      margin-top: 20px;
+      padding: 18px 20px;
+      background: rgba(16,185,129,0.07);
+      border: 1px solid rgba(16,185,129,0.2);
+      border-radius: 10px;
+      display: flex; align-items: baseline; gap: 6px;
+    }
+    .price-box .price-label { font-size: 0.8rem; color: var(--muted); font-weight: 500; }
+    .price-box .price-value {
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: var(--green);
+      letter-spacing: -0.5px;
+    }
+    .price-box .price-na { color: var(--muted); font-size: 1.1rem; }
+    .result-link {
+      display: inline-flex; align-items: center; gap: 5px;
+      margin-top: 14px;
+      font-size: 0.82rem;
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 500;
+      transition: opacity 0.15s;
+    }
+    .result-link:hover { opacity: 0.75; }
+
+    /* ── Error ── */
+    #error-box {
+      display: none;
+      padding: 14px 16px;
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.25);
+      border-radius: 10px;
+      color: #fca5a5;
+      font-size: 0.88rem;
+      line-height: 1.5;
+      animation: fadeUp 0.3s ease both;
+    }
+
+    /* ── History ── */
+    .section-title {
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+    #history-card { display: none; }
+    #history-list { display: flex; flex-direction: column; gap: 10px; }
+    .history-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 14px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 0.85rem;
+      transition: border-color 0.15s;
+    }
+    .history-item:hover { border-color: var(--accent); }
+    .h-barcode { font-family: monospace; color: var(--muted); font-size: 0.8rem; min-width: 110px; }
+    .h-name    { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+    .h-price   { font-weight: 700; color: var(--green); min-width: 70px; text-align: right; }
+    .h-clear {
+      margin-top: 12px;
+      font-size: 0.8rem;
+      color: var(--muted);
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      padding: 4px 8px;
+      border-radius: 6px;
+      transition: color 0.15s;
+    }
+    .h-clear:hover { color: var(--red); }
+
+    /* ── Footer ── */
+    footer {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      padding: 12px;
+      text-align: center;
+      font-size: 0.75rem;
+      color: var(--muted);
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+    }
+    footer a { color: var(--accent); text-decoration: none; }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<header>
+  <div class="logo">📦</div>
+  <h1>Amazon Price Scanner <span>— free forever</span></h1>
+  <span class="badge">● Live</span>
+</header>
+
+<!-- Main -->
+<main>
+  <div class="hero">
+    <h2>Scan Barcode → Get Price → Save to Sheet</h2>
+    <p>Enter a product barcode and your ZIP code. We'll fetch the Amazon price instantly.</p>
+  </div>
+
+  <!-- Input card -->
+  <div class="card">
+    <div class="form-row">
+      <div class="field">
+        <label>📍 Postal / ZIP Code</label>
+        <input id="inp-zip" type="text" placeholder="e.g. 10001" maxlength="20" autocomplete="postal-code" />
+      </div>
+      <div class="field">
+        <label>🔢 Barcode (UPC / EAN / ISBN)</label>
+        <input id="inp-barcode" type="text" placeholder="e.g. 840440401650" maxlength="30" autocomplete="off" />
+      </div>
+    </div>
+    <button class="btn" id="scan-btn" onclick="scan()">
+      <span id="btn-icon">⚡</span>
+      <span id="btn-label">Scan Price</span>
+    </button>
+  </div>
+
+  <!-- Error box -->
+  <div id="error-box"></div>
+
+  <!-- Result card -->
+  <div class="card" id="result-card">
+    <div class="result-header">
+      <div class="result-icon">🏷</div>
+      <div class="result-meta">
+        <div class="result-name" id="r-name">—</div>
+        <div class="tags">
+          <span class="tag tag-asin"  id="r-asin">ASIN: —</span>
+          <span class="tag tag-saved" id="r-saved" style="display:none">✓ Saved to Sheet</span>
+          <span class="tag tag-zip"   id="r-zip"  style="display:none">📍 —</span>
+        </div>
+      </div>
+    </div>
+    <div class="price-box">
+      <span class="price-label">Amazon Price</span>
+      <span class="price-value" id="r-price">—</span>
+    </div>
+    <a class="result-link" id="r-link" href="#" target="_blank" rel="noopener">
+      View on Amazon →
+    </a>
+  </div>
+
+  <!-- History -->
+  <div class="card" id="history-card">
+    <div class="section-title">Recent Scans</div>
+    <div id="history-list"></div>
+    <button class="h-clear" onclick="clearHistory()">Clear history</button>
+  </div>
+</main>
+
+<footer>
+  Prices fetched from <a href="https://amazon.com" target="_blank">Amazon.com</a> · Results saved to
+  <a href="https://docs.google.com/spreadsheets/d/19SO-QzFsk01snWF6-2R9ECkNYKu7ujne2mYgZripvLE" target="_blank">Google Sheet</a>
+</footer>
+
+<script>
+  const API = "/api/scrape";
+
+  // ── Scan ──────────────────────────────────────────────────────────────────
+  async function scan() {
+    const zip     = document.getElementById("inp-zip").value.trim();
+    const barcode = document.getElementById("inp-barcode").value.trim();
+
+    if (!barcode) {
+      showError("Please enter a barcode.");
+      return;
+    }
+
+    setLoading(true);
+    hideError();
+    hideResult();
+
+    try {
+      const res = await fetch(API, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ barcode, postal_code: zip }),
+      });
+
+      const data = await res.json();
+
+      if (!data.success) {
+        showError(data.error || "Something went wrong. Please try again.");
+        return;
+      }
+
+      showResult(data.product);
+      saveToHistory(data.product);
+
+    } catch (err) {
+      showError("Network error — please check your connection and try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ── UI helpers ────────────────────────────────────────────────────────────
+  function setLoading(on) {
+    const btn   = document.getElementById("scan-btn");
+    const icon  = document.getElementById("btn-icon");
+    const label = document.getElementById("btn-label");
+    btn.disabled = on;
+    icon.outerHTML  = on
+      ? '<span class="spinner" id="btn-icon"></span>'
+      : '<span id="btn-icon">⚡</span>';
+    label.textContent = on ? "Scanning…" : "Scan Price";
+  }
+
+  function showError(msg) {
+    const el = document.getElementById("error-box");
+    el.textContent = "⚠ " + msg;
+    el.style.display = "block";
+  }
+  function hideError()  { document.getElementById("error-box").style.display  = "none"; }
+  function hideResult() { document.getElementById("result-card").style.display = "none"; }
+
+  function showResult(p) {
+    const priceText = (p.price && p.price !== "N/A")
+      ? `${p.currency}${p.price}`
+      : "Price not available";
+
+    document.getElementById("r-name").textContent  = p.name || "Unknown product";
+    document.getElementById("r-asin").textContent  = `ASIN: ${p.asin}`;
+    document.getElementById("r-price").textContent = priceText;
+
+    const savedTag = document.getElementById("r-saved");
+    savedTag.style.display = "inline-flex";
+
+    const zipTag = document.getElementById("r-zip");
+    if (p.postal_code) {
+      zipTag.textContent = `📍 ${p.postal_code}`;
+      zipTag.style.display = "inline-flex";
+    } else {
+      zipTag.style.display = "none";
+    }
+
+    const link = document.getElementById("r-link");
+    link.href = p.url;
+
+    document.getElementById("result-card").style.display = "block";
+  }
+
+  // ── History (localStorage) ────────────────────────────────────────────────
+  function saveToHistory(p) {
+    const key  = "amz_scan_history";
+    const list = JSON.parse(localStorage.getItem(key) || "[]");
+    list.unshift({
+      barcode:  p.barcode,
+      name:     p.name,
+      price:    (p.price && p.price !== "N/A") ? `${p.currency}${p.price}` : "N/A",
+      url:      p.url,
+      ts:       new Date().toLocaleTimeString(),
+    });
+    localStorage.setItem(key, JSON.stringify(list.slice(0, 15))); // keep last 15
+    renderHistory();
+  }
+
+  function renderHistory() {
+    const key  = "amz_scan_history";
+    const list = JSON.parse(localStorage.getItem(key) || "[]");
+    const card = document.getElementById("history-card");
+    const container = document.getElementById("history-list");
+
+    if (list.length === 0) { card.style.display = "none"; return; }
+
+    card.style.display = "block";
+    container.innerHTML = list.map(item => `
+      <a class="history-item" href="${item.url}" target="_blank" rel="noopener" style="text-decoration:none;">
+        <span class="h-barcode">${item.barcode}</span>
+        <span class="h-name">${item.name}</span>
+        <span class="h-price">${item.price}</span>
+      </a>
+    `).join("");
+  }
+
+  function clearHistory() {
+    localStorage.removeItem("amz_scan_history");
+    document.getElementById("history-card").style.display = "none";
+  }
+
+  // ── Enter key ─────────────────────────────────────────────────────────────
+  document.getElementById("inp-barcode").addEventListener("keydown", e => {
+    if (e.key === "Enter") scan();
+  });
+  document.getElementById("inp-zip").addEventListener("keydown", e => {
+    if (e.key === "Enter") document.getElementById("inp-barcode").focus();
+  });
+
+  // ── Load history on startup ───────────────────────────────────────────────
+  renderHistory();
+</script>
+</body>
+</html>

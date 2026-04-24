@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "functions": {
+    "api/scrape.py": {
+      "maxDuration": 60,
+      "memory": 512
+    }
+  },
+  "routes": [
+    {
+      "src": "/api/scrape",
+      "dest": "/api/scrape.py"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/public/$1"
+    }
+  ]
+}
