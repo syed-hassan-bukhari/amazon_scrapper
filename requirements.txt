@@ -1,6 +1,7 @@
 requests==2.31.0
 beautifulsoup4==4.12.3
-lxml==5.2.1
+lxml>=5.2.1
 Flask==3.0.3
 Werkzeug==3.0.2
+customtkinter==5.2.2
 
